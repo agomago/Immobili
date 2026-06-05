@@ -1,0 +1,12 @@
+{
+  "permissions": {
+    "allow": [
+      "PowerShell(ls \"C:\\\\Program Files \\(x86\\)\\\\Microsoft Visual Studio\\\\2022\\\\BuildTools\\\\VC\\\\Tools\\\\MSVC\\\\\" -ErrorAction SilentlyContinue)",
+      "PowerShell(cd C:\\\\DEV\\\\Immobili; $env:GYP_MSVS_VERSION = \"2022\"; npm rebuild better-sqlite3 2>&1 | Select-Object -Last 20)",
+      "mcp__Claude_in_Chrome__read_console_messages",
+      "mcp__Claude_in_Chrome__computer",
+      "mcp__Claude_in_Chrome__javascript_tool",
+      "mcp__Claude_in_Chrome__navigate"
+    ]
+  }
+}
