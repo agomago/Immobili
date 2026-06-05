@@ -23,6 +23,7 @@ export default function Affitti() {
   const [espanso, setEspanso] = useState({})
   const [rate, setRate] = useState({})
   const [pagaModal, setPagaModal] = useState(null)
+  const [filtroRate, setFiltroRate] = useState('tutti') // 'tutti', 'scaduti', 'da-pagare', 'pagato'
   // ref per accedere al valore corrente di pagaModal nell'onClose async senza closure stale
   const pagaModalRef = useRef(null)
   const api = window.api
@@ -88,10 +89,20 @@ export default function Affitti() {
   const FB = (k) => ({ checked: form[k], onChange: e => setForm(p => ({ ...p, [k]: e.target.checked })) })
   const fmt = (n) => `€ ${parseFloat(n || 0).toFixed(2)}`
 
-  const aprPagaModal = (rata, contratto) => {
-    const val = { rata, contratto }
+  const aprPagaModal = (rata, contratto, isModifica = false) => {
+    const val = { rata, contratto, isModifica }
     pagaModalRef.current = val
     setPagaModal(val)
+  }
+
+  const filtroRatePerStato = (rateList) => {
+    if (filtroRate === 'tutti') return rateList
+    return rateList.filter(r => {
+      if (filtroRate === 'pagato') return r.stato === 'pagato'
+      if (filtroRate === 'scaduti') return r.stato !== 'pagato' && new Date(r.data_scadenza) < new Date()
+      if (filtroRate === 'da-pagare') return r.stato !== 'pagato' && new Date(r.data_scadenza) >= new Date()
+      return true
+    })
   }
 
   // Callback chiamato da PagaRataModal dopo il pagamento riuscito
@@ -193,11 +204,28 @@ export default function Affitti() {
 
               {espanso[c.id] && rate[c.id] && (
                 <div className="border-t border-slate-100 bg-slate-50 px-4 py-3">
-                  <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-2">
-                    Rate mensili ({rate[c.id].length})
-                  </p>
+                  <div className="flex items-center justify-between mb-3">
+                    <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide">
+                      Rate mensili ({rate[c.id].length})
+                    </p>
+                    <div className="flex gap-1.5">
+                      {['tutti', 'da-pagare', 'scaduti', 'pagato'].map(f => (
+                        <button
+                          key={f}
+                          onClick={() => setFiltroRate(f)}
+                          className={clsx(
+                            'text-xs px-2.5 py-1 rounded-full font-medium transition-colors',
+                            filtroRate === f
+                              ? 'bg-blue-600 text-white'
+                              : 'bg-white text-slate-600 border border-slate-200 hover:border-blue-300 hover:text-blue-600'
+                          )}>
+                          {f === 'tutti' ? 'Tutti' : f === 'da-pagare' ? 'Da pagare' : f === 'scaduti' ? 'Scaduti' : 'Pagati'}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
                   <div className="space-y-1.5 max-h-72 overflow-y-auto">
-                    {rate[c.id].map(r => (
+                    {filtroRatePerStato(rate[c.id]).map(r => (
                       <div key={r.id}
                         className={clsx(
                           'flex items-center justify-between py-2 px-3 rounded-lg text-sm transition-colors',
@@ -207,18 +235,26 @@ export default function Affitti() {
                         <span className="text-slate-400 text-xs w-24">{r.data_scadenza}</span>
                         <span className="font-semibold text-slate-700 w-20 text-right">{fmt(r.importo)}</span>
                         <div className="w-24 flex justify-center">{statoRata(r)}</div>
-                        <div className="w-32 text-right">
+                        <div className="flex gap-1.5 w-40 justify-end">
                           {r.stato !== 'pagato' ? (
                             <button
                               className="btn-success text-xs py-1 px-3"
-                              onClick={e => { e.stopPropagation(); aprPagaModal(r, c) }}>
+                              onClick={e => { e.stopPropagation(); aprPagaModal(r, c, false) }}>
                               <CheckCircle size={11} /> Paga
                             </button>
                           ) : (
-                            <span className="text-xs text-slate-400">
-                              {r.data_pagamento}
-                              {r.metodo_pagamento ? ` · ${r.metodo_pagamento}` : ''}
-                            </span>
+                            <>
+                              <span className="text-xs text-slate-400 flex-1">
+                                {r.data_pagamento}
+                                {r.metodo_pagamento ? ` · ${r.metodo_pagamento}` : ''}
+                              </span>
+                              <button
+                                className="p-1 text-slate-400 hover:text-blue-600 rounded hover:bg-blue-50"
+                                title="Modifica pagamento"
+                                onClick={e => { e.stopPropagation(); aprPagaModal(r, c, true) }}>
+                                <Edit2 size={13} />
+                              </button>
+                            </>
                           )}
                         </div>
                       </div>
@@ -315,6 +351,7 @@ export default function Affitti() {
         <PagaRataModal
           rata={pagaModal.rata}
           contratto={pagaModal.contratto}
+          isModifica={pagaModal.isModifica}
           onPagamentoRiuscito={onPagamentoRiuscito}
           onClose={() => { setPagaModal(null); pagaModalRef.current = null }}
         />

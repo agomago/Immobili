@@ -64,6 +64,12 @@ electron.contextBridge.exposeInMainWorld("api", {
 	},
 	pagamentiAffitto: {
 		getById: (id) => electron.ipcRenderer.invoke("pagamentiAffitto:getById", id),
+		getAll: (filtri) => electron.ipcRenderer.invoke("pagamentiAffitto:getAll", filtri),
+		aggiorna: (id, data) => electron.ipcRenderer.invoke("pagamentiAffitto:aggiorna", {
+			id,
+			data
+		}),
+		annullaPagamento: (id) => electron.ipcRenderer.invoke("pagamentiAffitto:annullaPagamento", id),
 		getByContratto: (id) => electron.ipcRenderer.invoke("pagamentiAffitto:getByContratto", id),
 		getByInquilino: (inquilino_id, mesi) => electron.ipcRenderer.invoke("pagamentiAffitto:getByInquilino", {
 			inquilino_id,

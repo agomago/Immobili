@@ -12,11 +12,11 @@ export const METODI = [
   { value: 'crypto',    label: 'Crypto' },
 ]
 
-export default function PagaRataModal({ rata, contratto, onPagamentoRiuscito, onClose }) {
+export default function PagaRataModal({ rata, contratto, onPagamentoRiuscito, onClose, isModifica = false }) {
   const [form, setForm] = useState({
-    data_pagamento: new Date().toISOString().split('T')[0],
-    metodo_pagamento: 'contanti',
-    note: ''
+    data_pagamento: rata?.data_pagamento || new Date().toISOString().split('T')[0],
+    metodo_pagamento: rata?.metodo_pagamento || 'contanti',
+    note: rata?.note || ''
   })
   const [loading, setLoading] = useState(false)
   const [errore, setErrore] = useState(null)
@@ -29,13 +29,16 @@ export default function PagaRataModal({ rata, contratto, onPagamentoRiuscito, on
     api.inquilini.getById(contratto.inquilino_id).then(inq => {
       if (inq) {
         setInquilino(inq)
-        setForm(f => ({
-          ...f,
-          metodo_pagamento: inq.metodo_pagamento_default || 'contanti'
-        }))
+        // Se non è modifica, usa il default dell'inquilino
+        if (!isModifica) {
+          setForm(f => ({
+            ...f,
+            metodo_pagamento: inq.metodo_pagamento_default || 'contanti'
+          }))
+        }
       }
     })
-  }, [contratto?.inquilino_id])
+  }, [contratto?.inquilino_id, isModifica])
 
   const salva = async () => {
     setLoading(true)
@@ -43,10 +46,20 @@ export default function PagaRataModal({ rata, contratto, onPagamentoRiuscito, on
     // Cattura i valori stabili prima di qualsiasi operazione asincrona
     const rata_id = rata.id
     const contratto_id = contratto.id
-    const datiPagamento = { ...form }
+    const datiPagamento = {
+      ...form,
+      importo: parseFloat(rata.importo),
+      stato: 'pagato'
+    }
 
     try {
-      const result = await api.pagamentiAffitto.pagaRata(rata_id, datiPagamento)
+      if (isModifica) {
+        // Se è modifica, usa l'API di aggiornamento
+        await api.pagamentiAffitto.aggiorna(rata_id, datiPagamento)
+      } else {
+        // Se è nuovo, usa pagaRata
+        await api.pagamentiAffitto.pagaRata(rata_id, datiPagamento)
+      }
       // Notifica il parent con tutti i dati necessari — nessuna closure stale
       await onPagamentoRiuscito(rata_id, contratto_id, datiPagamento)
     } catch (e) {
@@ -59,7 +72,7 @@ export default function PagaRataModal({ rata, contratto, onPagamentoRiuscito, on
   const F = (k) => ({ value: form[k], onChange: e => setForm(p => ({ ...p, [k]: e.target.value })) })
 
   return (
-    <Modal open title={`Registra pagamento — ${rata.mese_riferimento}`} onClose={onClose} size="sm">
+    <Modal open title={`${isModifica ? 'Modifica' : 'Registra'} pagamento — ${rata.mese_riferimento}`} onClose={onClose} size="sm">
       {/* Riepilogo */}
       <div className="flex items-center gap-3 p-3 bg-green-50 rounded-lg mb-4">
         <div className="w-9 h-9 rounded-full bg-green-100 flex items-center justify-center shrink-0">
@@ -125,7 +138,7 @@ export default function PagaRataModal({ rata, contratto, onPagamentoRiuscito, on
         <button className="btn-secondary" onClick={onClose} disabled={loading}>Annulla</button>
         <button className="btn-success" onClick={salva} disabled={loading}>
           {loading ? <Loader size={15} className="animate-spin" /> : <CheckCircle size={15} />}
-          {loading ? 'Salvataggio...' : 'Conferma pagamento'}
+          {loading ? 'Salvataggio...' : (isModifica ? 'Aggiorna pagamento' : 'Conferma pagamento')}
         </button>
       </div>
     </Modal>

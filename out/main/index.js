@@ -3718,6 +3718,61 @@ var pagamentiAffitto = {
     JOIN inquilini inq ON inq.id = c.inquilino_id
     WHERE pa.id = ?
   `).get(id),
+	getAll: (filtri = {}) => {
+		const conds = [];
+		const params = [];
+		if (filtri.immobile_id) {
+			conds.push("i.id = ?");
+			params.push(filtri.immobile_id);
+		}
+		if (filtri.anno) {
+			conds.push("strftime('%Y', pa.data_scadenza) = ?");
+			params.push(String(filtri.anno));
+		}
+		if (filtri.mese) {
+			conds.push("strftime('%m', pa.data_scadenza) = ?");
+			params.push(filtri.mese.padStart(2, "0"));
+		}
+		if (filtri.stato) {
+			conds.push("pa.stato = ?");
+			params.push(filtri.stato);
+		}
+		if (filtri.contratto_id) {
+			conds.push("pa.contratto_id = ?");
+			params.push(filtri.contratto_id);
+		}
+		const where = conds.length ? "WHERE " + conds.join(" AND ") : "";
+		return getDb().prepare(`
+      SELECT pa.*,
+             c.canone_mensile, c.tipo_contratto, c.id as contratto_id,
+             u.nome as unita_nome, i.nome as immobile_nome, i.id as immobile_id,
+             inq.nome || ' ' || inq.cognome as inquilino_nome,
+             inq.id as inquilino_id, inq.foto_path, inq.metodo_pagamento_default
+      FROM pagamenti_affitto pa
+      JOIN contratti c ON c.id = pa.contratto_id
+      JOIN unita u ON u.id = c.unita_id
+      JOIN immobili i ON i.id = u.immobile_id
+      JOIN inquilini inq ON inq.id = c.inquilino_id
+      ${where}
+      ORDER BY pa.data_scadenza DESC, i.nome, u.nome
+    `).all(...params);
+	},
+	aggiorna: (id, data) => {
+		return getDb().prepare(`
+      UPDATE pagamenti_affitto
+      SET importo=@importo, data_pagamento=@data_pagamento,
+          metodo_pagamento=@metodo_pagamento, stato=@stato, note=@note
+      WHERE id=@id
+    `).run({
+			...data,
+			id
+		});
+	},
+	annullaPagamento: (id) => getDb().prepare(`
+    UPDATE pagamenti_affitto
+    SET stato='da_pagare', data_pagamento=NULL, metodo_pagamento=NULL
+    WHERE id=?
+  `).run(id),
 	getByInquilino: (inquilino_id, mesi = 3) => getDb().prepare(`
     SELECT pa.*,
            u.nome as unita_nome, i.nome as immobile_nome,
@@ -91805,6 +91860,9 @@ function registraHandlers(docsDir, fotosDir) {
 	electron.ipcMain.handle("contratti:delete", (_, id) => contratti.delete(id));
 	electron.ipcMain.handle("pagamentiAffitto:getByContratto", (_, id) => pagamentiAffitto.getByContratto(id));
 	electron.ipcMain.handle("pagamentiAffitto:getById", (_, id) => pagamentiAffitto.getById(id));
+	electron.ipcMain.handle("pagamentiAffitto:getAll", (_, filtri) => pagamentiAffitto.getAll(filtri || {}));
+	electron.ipcMain.handle("pagamentiAffitto:aggiorna", (_, { id, data }) => pagamentiAffitto.aggiorna(id, data));
+	electron.ipcMain.handle("pagamentiAffitto:annullaPagamento", (_, id) => pagamentiAffitto.annullaPagamento(id));
 	electron.ipcMain.handle("pagamentiAffitto:getByInquilino", (_, { inquilino_id, mesi }) => pagamentiAffitto.getByInquilino(inquilino_id, mesi || 3));
 	electron.ipcMain.handle("pagamentiAffitto:getScaduti", () => pagamentiAffitto.getScaduti());
 	electron.ipcMain.handle("pagamentiAffitto:pagaRata", (_, { id, data }) => pagamentiAffitto.pagaRata(id, data));
