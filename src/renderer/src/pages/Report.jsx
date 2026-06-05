@@ -3,6 +3,16 @@ import { BarChart2, Download, FileSpreadsheet, FileText, TrendingUp } from 'luci
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts'
 import clsx from 'clsx'
 
+const MESI_LABEL = ['Gen','Feb','Mar','Apr','Mag','Giu','Lug','Ago','Set','Ott','Nov','Dic']
+const MESI_NUM = ['01','02','03','04','05','06','07','08','09','10','11','12']
+
+const getDefaultIncassiMensili = () => MESI_NUM.map((m, idx) => ({
+  mese: m,
+  label: MESI_LABEL[idx],
+  incasso: 0,
+  rate: 0
+}))
+
 export default function Report() {
   const [immobili, setImmobili] = useState([])
   const [params, setParams] = useState({
@@ -11,12 +21,9 @@ export default function Report() {
     immobile_id: ''
   })
   const [loading, setLoading] = useState(null)
-  const [incassiMensili, setIncassiMensili] = useState([])
+  const [incassiMensili, setIncassiMensili] = useState(getDefaultIncassiMensili)
   const [loadingIncassi, setLoadingIncassi] = useState(false)
   const api = window.api
-
-  const MESI_LABEL = ['Gen','Feb','Mar','Apr','Mag','Giu','Lug','Ago','Set','Ott','Nov','Dic']
-  const MESI_NUM = ['01','02','03','04','05','06','07','08','09','10','11','12']
 
   useEffect(() => { 
     api?.immobili.getAll().then(setImmobili)
@@ -26,10 +33,12 @@ export default function Report() {
     const caricaIncassi = async () => {
       setLoadingIncassi(true)
       try {
-        const dati = await api.pagamentiAffitto.getIncassiMensiliPerAnno(
+        let dati = await api.pagamentiAffitto.getIncassiMensiliPerAnno(
           Number(params.anno),
           params.immobile_id ? Number(params.immobile_id) : null
         )
+        if (!Array.isArray(dati)) dati = []
+
         // Costruisci array 12 mesi
         const mesiCompleti = MESI_NUM.map((m, idx) => {
           const dato = dati.find(d => d.mese === m)
@@ -147,7 +156,7 @@ export default function Report() {
                   contentStyle={{ backgroundColor: '#fff', border: '1px solid #e2e8f0', borderRadius: '8px' }}
                 />
                 <Legend wrapperStyle={{ fontSize: '13px' }} />
-                <Bar dataKey="incasso" fill="#10b981" name="Incasso (€)" radius={[4, 4, 0, 0]} />
+                <Bar dataKey="incasso" fill="#10b981" name="Incasso (€)" radius={[4, 4, 0, 0]} minPointSize={4} />
               </BarChart>
             </ResponsiveContainer>
 
