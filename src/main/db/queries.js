@@ -321,6 +321,31 @@ export const pagamentiAffitto = {
     `)
     const insertMany = getDb().transaction((rows) => rows.forEach(r => insert.run(r)))
     insertMany(mesi)
+  },
+
+  getIncassiMensiliPerAnno: (anno, immobile_id = null) => {
+    const conds = [`strftime('%Y', pa.data_pagamento) = ?`]
+    const params = [String(anno)]
+    if (immobile_id) {
+      conds.push('i.id = ?')
+      params.push(immobile_id)
+    }
+    const where = conds.length ? 'WHERE ' + conds.join(' AND ') : 'WHERE ' + conds[0]
+    return getDb().prepare(`
+      SELECT 
+        strftime('%m', pa.data_pagamento) as mese,
+        SUM(pa.importo) as totale_incassato,
+        COUNT(*) as num_rate,
+        GROUP_CONCAT(DISTINCT u.nome || ' (' || i.nome || ')') as unita_info
+      FROM pagamenti_affitto pa
+      JOIN contratti c ON c.id = pa.contratto_id
+      JOIN unita u ON u.id = c.unita_id
+      JOIN immobili i ON i.id = u.immobile_id
+      ${where}
+      AND pa.stato = 'pagato'
+      GROUP BY strftime('%m', pa.data_pagamento)
+      ORDER BY mese
+    `).all(...params)
   }
 }
 

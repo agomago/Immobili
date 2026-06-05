@@ -101,6 +101,7 @@ export function registraHandlers(docsDir, fotosDir) {
   ipcMain.handle('pagamentiAffitto:getScaduti', () => pagamentiAffitto.getScaduti())
   ipcMain.handle('pagamentiAffitto:pagaRata', (_, { id, data }) => pagamentiAffitto.pagaRata(id, data))
   ipcMain.handle('pagamentiAffitto:create', (_, data) => pagamentiAffitto.create(data))
+  ipcMain.handle('pagamentiAffitto:getIncassiMensiliPerAnno', (_, { anno, immobile_id }) => pagamentiAffitto.getIncassiMensiliPerAnno(anno, immobile_id))
 
   // ── SPESE ────────────────────────────────────────────────────────────────────
   ipcMain.handle('categorie:getAll', () => categorieSpese.getAll())
